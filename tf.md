@@ -15,3 +15,14 @@ stddev:标准差
 ##4.tf.random_shuffle
 `tf.random_shuffle(value,seed=None,name=None)`
 沿着value的第一维进行随机重新排列
+
+#二.变形
+##1.tf.concat
+tf.concat([tensor1, tensor2, tensor3,...], axis)
+##2.
+
+#三.损失函数
+##1.交叉熵
+###1.1 tf.nn.softmax_cross_entropy_with_logits
+`tf.nn.softmax_cross_entropy_with_logits(_sentinel=None, labels=None, logits=None, dim=-1, name=None)`
+###1.2 
