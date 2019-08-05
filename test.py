@@ -1,0 +1,24 @@
+import tensorflow as tf
+
+'''
+#tensor 迭代，切片
+x=tf.constant([[[1,2],[3,4]],[[5,6],[7,8]]])
+
+with tf.Session() as sess:
+    sp=x.shape
+    res=[]
+    for i in range(sp[0]):
+        temp=[]
+        for j in range(sp[1]):
+            for k in range(sp[2]):
+                temp.append(tf.concat([x[i,j],x[i][k]],-1))
+        res.append(temp)
+    res=tf.cast(res,tf.int32)
+    print(res.shape)
+    print(sess.run(res))
+'''
+
+x=tf.constant([[1,2,3,4],[5,6,7,8]])
+with tf.Session() as sess:
+    y=tf.reshape(x,[2,2,2])
+    print(sess.run(y))
