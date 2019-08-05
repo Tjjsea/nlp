@@ -18,11 +18,24 @@ stddev:标准差
 
 #二.变形
 ##1.tf.concat
-tf.concat([tensor1, tensor2, tensor3,...], axis)
-##2.
+`tf.concat([tensor1, tensor2, tensor3,...], axis)`
+##2.tf.reshape
+`tf.reshape(tensor,shape,name=None)`
+`x=tf.constant([[1,2,3,4],[5,6,7,8]])`
+`with tf.Session() as sess:`
+    `y=tf.reshape(x,[2,2,2])`
+    `print(sess.run(y))`
+out:`[[[1 2]`
+  `[3 4]]`
+ `[[5 6]`
+  `[7 8]]]`
+
 
 #三.损失函数
 ##1.交叉熵
 ###1.1 tf.nn.softmax_cross_entropy_with_logits
 `tf.nn.softmax_cross_entropy_with_logits(_sentinel=None, labels=None, logits=None, dim=-1, name=None)`
 ###1.2 
+
+#四.激活函数
+##1.
