@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import numpy as np
 import tensorflow as tf
 
 class JModel():
-    def __init__(self,sequence_length,max_words_length,vocab_size,wordembedding_size,char_size,charembedding_size,char_biunits,POS_biunits,num_POS,POSembedding_size):
+    def __init__(self,sequence_length,max_words_length,vocab_size,wordembedding_size,char_size,charembedding_size,char_biunits,POS_biunits,num_POS,POSembedding_size,parse_biunits):
         self.input_word=tf.placeholder(tf.int32,[None,sequence_length],name='input_word')
         self.input_character=tf.placeholder(tf.int32,[None,sequence_length,max_words_length],name='input_character')
         self.input_tag=tf.placeholder(tf.int32,[None,sequence_length,num_POS],name='POS_tag')
@@ -28,7 +29,7 @@ class JModel():
 
                 outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.input_character)
                 charbioutput=tf.concat(outputs,2) #[batch_size*sequence_length,char_biunits*2]
-            charoutput=self.MLP(charbioutput,char_biunits*2,wordembedding_size,'char_embedding')
+            charoutput=self.MLP(charbioutput,char_biunits*2,wordembedding_size,'char_embedding',tf.nn.leaky_relu)
             self.char_embedded=tf.reshape([-1,sequence_length,wordembedding_size])
             
         self.embedded=tf.concat([self.word_embedded,self.char_embedded],2)   #将word-level与char-level的embedding拼接 [batch_size,sequence_length,2*wordembedding_size]
@@ -42,38 +43,72 @@ class JModel():
 
                 outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.taginput)
             tagoutput=tf.concat(outputs,2)
-            self.tagout=self.MLP(tagoutput,POS_biunits*2,num_POS,'POS-tag')
+            self.tagout=self.MLP(tagoutput,POS_biunits*2,num_POS,'POS-tag',tf.nn.leaky_relu)
             self.postag=tf.nn.softmax(self.tagout)#[batch_size,sequence_length,num_POS]
 
             self.loss1=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))
             
         self.pos=tf.argmax(self.postag,-1)     #形状应为[batch_size,sequence_length,1] 预测的每个单词的标签
+
         #Parsing component
         with tf.name_scope("parsing component"):
             POS_embedding=tf.Variable(tf.random_uniform([num_POS,POSembedding_size],-1.0,1.0))
             self.POS_embedded=tf.nn.embedding_lookup(POS_embedding,self.pos)
-            self.parinput=tf.concat([self.POS_embedded,self.embedded],-1)
-            self.parinput=tf.concat([self.parinput,self.position],-1)
+            self.parinput=tf.concat([self.POS_embedded,self.embedded,self.position],-1)
             with tf.name_scope("parse-bilstm"):
-                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(char_biunits),output_keep_prob=self.dropout_keep_prob)
-                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(char_biunits),output_keep_prob=self.dropout_keep_prob)
+                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(parse_biunits),output_keep_prob=self.dropout_keep_prob)
+                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(parse_biunits),output_keep_prob=self.dropout_keep_prob)
 
-                outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.input_character)
+                outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.parinput)
+            self.parvec=tf.concat(outputs,2) #[batch_size,sequence_length,parse_biunits*2]
 
             with tf.name_scope("arc"):
+                sp=self.parvec.shape
+                res=[]
+                for i in range(sp[0]):
+                    temp=[]
+                    for j in range(sp[1]):
+                        for k in range(sp[2]):
+                            temp.append(tf.concat([self.parvec[i,j],self.parvec[i,k]],tf.float32))
+                    res.append(temp)
+                self.sc=tf.cast(res,tf.float32) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
+                
+                self.score=self.MLP(self.sc,parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
+                self.score=tf.reshape(self.score,[self.score.shape[0],sequence_length,sequence_length]) #[batch_suze,sequence_length,sequence_length]
+
                 pass
             
             with tf.name_scope("arc label"):
                 pass
-            
-            pass
         
     def MLP(self,inputs, insize, outsize, scope_name,activation_function=None):
+        hidsize=128
         with tf.variable_scope(scope_name):
-            Weights = tf.get_variable("Weights", [insize, outsize], initializer = tf.contrib.layers.xavier_initializer())
-            bias = tf.get_variable("Bias", [outsize], initializer = tf.zeros_initializer())
-            out = tf.matmul(inputs, Weights) + bias
-            if activation_function is None:
-                return out
-            else:
-                return activation_function(out)
+            Weights1 = tf.get_variable("Weights1", [insize, hidsize], initializer = tf.contrib.layers.xavier_initializer())
+            bias1 = tf.get_variable("Bias1", [hidsize], initializer = tf.zeros_initializer())
+            Weights2 = tf.get_variable("Weights2", [hidsize,outsize], initializer = tf.contrib.layers.xavier_initializer())
+            bias2 = tf.get_variable("Bias2", [outsize], initializer = tf.zeros_initializer())
+            out1 = tf.matmul(inputs, Weights1) + bias1
+            if activation_function is not None:
+                out1=activation_function(out1)
+            out2 = tf.matmul(out1,Weights2)+bias2
+            return out2
+
+    def Esiner(self,input):
+        '''
+        Esiner算法
+        '''
+
+        pass
+    
+    def CLE(self,input):
+        '''
+        Chu-Liu-Edmonds算法
+        '''
+        pass
+
+    def get_treescore(self,tree):
+        '''
+        获取句法树的评分
+        '''
+        pass
