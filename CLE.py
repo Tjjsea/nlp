@@ -105,10 +105,14 @@ def MST(G):
     return msts,mweights
 
 def GetScore(G,heads):
-
-    pass
-
-
+    weights=0
+    for b in range(len(heads)):
+        for i,h in enumerate(heads[b]):
+            if i==h: #根节点
+                continue
+            weights+=G[b,h,i]
+    weights=tf.cast(weights,tf.float32)
+    return weights
 
 if __name__=='__main__':
     G=[[[2,5,10,18,21],
