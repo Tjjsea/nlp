@@ -1,62 +1,95 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import numpy as np
-import tensorflow as tf
 
-NE=-1
+from collections import defaultdict, namedtuple
 
-def iscycle(v,recStack,G,cycle):
-    recStack[v]=True   #该点被访问
-    cycle.append(v)
-    for node in range(len(G[v])):
-        if G[v][node] == NE or v == node:
-            continue
-        if recStack[node]==False:
-            if iscycle(node,recStack,G,cycle):
-                return True
-        else:
+Arc = namedtuple('Arc', ('tail', 'weight', 'head'))
+
+def max_spanning_arborescence(arcs, sink):
+    good_arcs = [] #MST的弧
+    quotient_map = {arc.tail: arc.tail for arc in arcs}
+    quotient_map[sink] = sink
+    while True:
+        min_arc_by_tail_rep = {} #以某个节点为tail的权值最大的弧 tail:arc
+        successor_rep = {}       #保存上面记录的弧的tail和head，相当于GM
+        for arc in arcs:         #对每个点，选择权重最大的入边
+            if arc.tail == sink:
+                continue
+            tail_rep = quotient_map[arc.tail]
+            head_rep = quotient_map[arc.head]
+            if tail_rep == head_rep:
+                continue
+            if tail_rep not in min_arc_by_tail_rep or min_arc_by_tail_rep[tail_rep].weight < arc.weight:
+                min_arc_by_tail_rep[tail_rep] = arc
+                successor_rep[tail_rep] = head_rep
+        cycle_reps = find_cycle(successor_rep, sink)
+        if cycle_reps is None:
+            good_arcs.extend(min_arc_by_tail_rep.values())
+            return spanning_arborescence(good_arcs, sink)
+        good_arcs.extend(min_arc_by_tail_rep[cycle_rep] for cycle_rep in cycle_reps)
+        cycle_rep_set = set(cycle_reps)
+        cycle_rep = cycle_rep_set.pop()
+        quotient_map = {node: cycle_rep if node_rep in cycle_rep_set else node_rep for node, node_rep in quotient_map.items()}
+
+
+def find_cycle(successor, sink):
+    '''
+    寻找弧
+    successor:GM,{tail:head}
+    sink:根节点
+    return:cycle,列表，含有环的序号
+    '''
+    visited = {sink}
+    for node in successor:
+        cycle = []
+        while node not in visited:
+            visited.add(node)
             cycle.append(node)
-            return True
-    
-    recStack[v]=False
-    cycle=[]
-    return False
+            node = successor[node]
+        if node in cycle:
+            return cycle[cycle.index(node):]
+    return None
 
-def detect_cycle(G):
-    '''
-    寻找有向图中的环，若存在环，返回环中的点；否则，返回空列表
-    '''
-    recStack=[False]*len(G)  #记录某个点是否被访问过
-    cycle=[]
-    for node in range(len(G)):
-        if iscycle(node,recStack,G,cycle):
-            return cycle[cycle.index(cycle[-1]):-1]
-    return cycle
 
-def CLE(G):
-    '''
-    Chu-Liu-Edmonds algorithm
-    '''
-    NewG=[]
-    for j in range(len(G[0])):
-        allv=list(G[:,j])
-        allv[j]=NE
-        NewG.append(allv.index(max(allv)))
-    GM=[[NE]*len(G) for _ in range(len(G))]
-    for i,e in enumerate(NewG):
-        GM[e][i]=G[e][i]
-    cycle=detect_cycle(GM)
-    if not cycle:
-        return np.array(GM)
-    
-    Gc=contract(G,cycle)
-    y=CLE(Gc)
-    
-    
-def contract(G,C):
-    pass
-    
+def spanning_arborescence(arcs, sink):
+    arcs_by_head = defaultdict(list)
+    weights=0
+    for arc in arcs:
+        if arc.tail == sink:
+            continue
+        arcs_by_head[arc.head].append(arc)
+    solution_arc_by_tail = {}
+    stack = arcs_by_head[sink]
+    while stack:
+        arc = stack.pop()
+        if arc.tail in solution_arc_by_tail:
+            continue
+        solution_arc_by_tail[arc.tail] = arc
+        weights+=arc.weight
+        stack.extend(arcs_by_head[arc.tail])
+
+    return solution_arc_by_tail,weights
+
+def trans(G):
+    arcs=[]
+    for i in range(len(G)):
+        for j in range(len(G)):
+            if i==j:
+                continue
+            arcs.append(Arc(j,G[i][j],i))
+    return arcs
+
+def MST(G):
+    arcs=trans(G)
+    mst,mweight={},-999
+    for i in range(len(G)):
+        tree,weight=max_spanning_arborescence(arcs,i)
+        if weight>mweight:
+            mst,mweight=tree,weight
+    return mst
+
+
 
 if __name__=='__main__':
     G=[[2,5,10,18,21],
@@ -64,11 +97,8 @@ if __name__=='__main__':
        [5,5,19,30,6],
        [15,18,22,8,9],
        [6,10,24,16,28]]
-    NG=[[NE,NE,NE,3,NE],
-        [NE,NE,2,NE,NE],
-        [NE,NE,NE,NE,4],
-        [NE,1,NE,NE,NE],
-        [NE,1,NE,NE,NE]]
-    G=np.array(G)
-    NG=np.array(NG)
-    CLE(G)
+    
+    #arcs=trans(G)
+    #print(max_spanning_arborescence(arcs,0))
+    #print(min_spanning_arborescence([Arc(1, 17, 0), Arc(2, 16, 0), Arc(3, 19, 0), Arc(4, 16, 0), Arc(5, 16, 0), Arc(6, 18, 0), Arc(2, 3, 1), Arc(3, 3, 1), Arc(4, 11, 1), Arc(5, 10, 1), Arc(6, 12, 1), Arc(1, 3, 2), Arc(3, 4, 2), Arc(4, 8, 2), Arc(5, 8, 2), Arc(6, 11, 2), Arc(1, 3, 3), Arc(2, 4, 3), Arc(4, 12, 3), Arc(5, 11, 3), Arc(6, 14, 3), Arc(1, 11, 4), Arc(2, 8, 4), Arc(3, 12, 4), Arc(5, 6, 4), Arc(6, 10, 4), Arc(1, 10, 5), Arc(2, 8, 5), Arc(3, 11, 5), Arc(4, 6, 5), Arc(6, 4, 5), Arc(1, 12, 6), Arc(2, 11, 6), Arc(3, 14, 6), Arc(4, 10, 6), Arc(5, 4, 6)], 0))
+    print(MST(G))
