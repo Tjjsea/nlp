@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-
+import tensorflow as tf
 from collections import defaultdict, namedtuple
 
 Arc = namedtuple('Arc', ('tail', 'weight', 'head'))
@@ -65,40 +65,61 @@ def spanning_arborescence(arcs, sink):
         arc = stack.pop()
         if arc.tail in solution_arc_by_tail:
             continue
-        solution_arc_by_tail[arc.tail] = arc
+        solution_arc_by_tail[arc.tail] = arc.head #符合treebank格式
         weights+=arc.weight
         stack.extend(arcs_by_head[arc.tail])
+    solution_arc_by_tail[sink] = sink #根节点没有head
 
-    return solution_arc_by_tail,weights
+    return [solution_arc_by_tail[k] for k in sorted(solution_arc_by_tail)],weights
 
 def trans(G):
-    arcs=[]
-    for i in range(len(G)):
-        for j in range(len(G)):
-            if i==j:
-                continue
-            arcs.append(Arc(j,G[i][j],i))
-    return arcs
+    allarcs=[]
+    for b in range(G.shape[0]):
+        arcs=[]
+        for i in range(G.shape[1]):
+            for j in range(G.shape[2]):
+                if i==j:
+                    continue
+                arcs.append(Arc(j,G[b,i,j],i))
+        allarcs.append(arcs)
+    return allarcs #batches
 
 def MST(G):
-    arcs=trans(G)
-    mst,mweight={},-999
-    for i in range(len(G)):
-        tree,weight=max_spanning_arborescence(arcs,i)
-        if weight>mweight:
-            mst,mweight=tree,weight
-    return mst
+    '''
+    获取最大生成树
+    G:分数矩阵，ndarray
+    return:msts:[batch_size,sequence_length] mweights:[batch_size],树的权重
+    '''
+    allarcs=trans(G)
+    msts,mweights=[],[]
+    for idx,arcs in enumerate(allarcs):
+        mst,mweight={},-999
+        for i in range(G.shape[1]):
+            tree,weight=max_spanning_arborescence(arcs,i)
+            if weight>mweight:
+                mst,mweight=tree,weight  #mst:列表，表示对应词的head的序号，head为0表示无head
+        msts.append(mst)
+        mweights.append(mweight)
+    #msts=tf.cast(msts,tf.int32)
+    mweights=tf.cast(mweights,tf.float32)
+    return msts,mweights
+
+def GetScore(G,heads):
+
+    pass
 
 
 
 if __name__=='__main__':
-    G=[[2,5,10,18,21],
+    G=[[[2,5,10,18,21],
        [3,12,9,18,20],
        [5,5,19,30,6],
        [15,18,22,8,9],
-       [6,10,24,16,28]]
+       [6,10,24,16,28]]]
     
-    #arcs=trans(G)
-    #print(max_spanning_arborescence(arcs,0))
-    #print(min_spanning_arborescence([Arc(1, 17, 0), Arc(2, 16, 0), Arc(3, 19, 0), Arc(4, 16, 0), Arc(5, 16, 0), Arc(6, 18, 0), Arc(2, 3, 1), Arc(3, 3, 1), Arc(4, 11, 1), Arc(5, 10, 1), Arc(6, 12, 1), Arc(1, 3, 2), Arc(3, 4, 2), Arc(4, 8, 2), Arc(5, 8, 2), Arc(6, 11, 2), Arc(1, 3, 3), Arc(2, 4, 3), Arc(4, 12, 3), Arc(5, 11, 3), Arc(6, 14, 3), Arc(1, 11, 4), Arc(2, 8, 4), Arc(3, 12, 4), Arc(5, 6, 4), Arc(6, 10, 4), Arc(1, 10, 5), Arc(2, 8, 5), Arc(3, 11, 5), Arc(4, 6, 5), Arc(6, 4, 5), Arc(1, 12, 6), Arc(2, 11, 6), Arc(3, 14, 6), Arc(4, 10, 6), Arc(5, 4, 6)], 0))
-    print(MST(G))
+    
+    with tf.Session() as sess:
+        G=tf.cast(G,tf.int32)
+        msts,mweights=MST(G.eval())
+        print(msts)
+        print(sess.run(mweights))

@@ -18,7 +18,9 @@ with tf.Session() as sess:
     print(sess.run(res))
 '''
 
-x=tf.constant([[1,2,3,4],[5,6,7,8]])
+x=tf.constant([1,2],tf.float32)
+y=tf.constant([1,2],tf.float32)
+z=tf.constant([1,2],tf.float32)
 with tf.Session() as sess:
-    y=tf.reshape(x,[2,2,2])
-    print(sess.run(y))
+    a=tf.add(x,y)
+    print(sess.run(a))
