@@ -13,6 +13,8 @@ batch_size=64
 sequence_length=36
 max_words_length=16
 char_size=54
+num_POS=17
+num_label=38
 with open('data/words.json') as fin:
     worddict=json.load(fin)
     vocab_size=len(worddict)
@@ -25,10 +27,10 @@ tf.app.flags.DEFINE_integer("wordembedding_size",100,"word level embedding size"
 tf.app.flags.DEFINE_integer("charembedding_size",100,"char level embedding size")
 tf.app.flags.DEFINE_integer("char_biunits",256,"num of hidden layer for char embedding bilstm")
 tf.app.flags.DEFINE_integer("POS_biunits",256,"num of hidden layer in bilstm of tagging component")
-tf.app.flags.DEFINE_integer("num_POS",17,"num of POStags")
+tf.app.flags.DEFINE_integer("num_POS",num_POS,"num of POStags")
 tf.app.flags.DEFINE_integer("POSembedding_size",100,"POS tag embedding size")
 tf.app.flags.DEFINE_integer("parse_biunits",256,"num of hidden layer in bilstm of parsing component")
-tf.app.flags.DEFINE_integer("num_label",37,"num of arc labels")
+tf.app.flags.DEFINE_integer("num_label",num_label,"num of arc labels")
 tf.app.flags.DEFINE_integer("epochs",1,"num of epochs")
 tf.app.flags.DEFINE_integer("batch_size",batch_size,"batch size")
 tf.app.flags.DEFINE_integer("steps_per_checkpoint",100,"save model checkpoint every this iteration")
