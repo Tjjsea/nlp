@@ -42,3 +42,8 @@ out:`[[[1 2]`
 
 #五.生成tensor
 ##1.tf.constant
+
+#六.tensorflow训练
+
+#七.lstm
+##1.tf.nn.bidirectional_dynamic_rnn
