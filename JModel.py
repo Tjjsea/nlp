@@ -12,7 +12,7 @@ class JModel():
         self.input_tag=tf.placeholder(tf.int32,[None,None,None],name='POS_tag')
         self.input_arc=tf.placeholder(tf.int32,[None,None],name='arc')
         self.input_arclabel=tf.placeholder(tf.int32,[None,None],name='arc_label')
-        self.position=tf.placeholder(tf.float32,[None,None],name='context_position')
+        self.position=tf.placeholder(tf.float32,[None,None,1],name='context_position')
         self.dropout_keep_prob=tf.placeholder(tf.float32,name='dropout_keep_prob')
 
         #word embeeding
@@ -38,7 +38,7 @@ class JModel():
 
         #POS tagging component
         with tf.name_scope("POS_tagging_component"):
-            self.position=tf.reshape(self.position,[FLAGS.batch_size,FLAGS.sequence_length,1])
+            #self.position=tf.reshape(self.position,[-1,FLAGS.sequence_length,1])
             self.taginput=tf.concat([self.embedded,self.position],-1)  #拼接存在问题?
             with tf.name_scope("POS-bilstm"):
                 fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
