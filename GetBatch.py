@@ -8,11 +8,12 @@ Charlength=16
 
 class Batch():
     def __init__(self):
-        self.word=[]
-        self.char=[]
-        self.tag=[]
-        self.arc=[]
-        self.label=[]
+        self.word=[]     #[batdh_size,sequence_length]
+        self.char=[]     #[batch_size,sequence_length,charlength]
+        self.tag=[]      #[batch_size,sequence_length,num_tag]
+        self.arc=[]      #[batch_size,sequence_length]
+        self.label=[]    #[batch_size,sequence_length,num_label]
+        self.position=[] #[batch_size,sequence_length]
 
 def getbatch(mode,batch_size=64):
     filepath='data/'+mode+'.json'
@@ -49,6 +50,10 @@ def getbatch(mode,batch_size=64):
             batch.char.append(ctemp)
             
             pos=st['POStag']
+            if len(pos)>Maxlength:
+                pos=pos[:Maxlength]
+            elif len(pos)<Maxlength:
+                pos.extend(['X']*(Maxlength-len(pos)))
             num_pos=len(posdict)
             ttemp=[]
             for p in pos:
@@ -57,9 +62,18 @@ def getbatch(mode,batch_size=64):
                 ttemp.append(tags)
             batch.tag.append(ttemp)
             
-            batch.arc.append(st['head'])
+            head=st['head']
+            if len(head)>Maxlength:
+                head=head[:Maxlength]
+            elif len(head)<Maxlength:
+                head.extend([0]*(Maxlength-len(head)))
+            batch.arc.append(head)
 
             label=st['label']
+            if len(label)>Maxlength:
+                label=label[:Maxlength]
+            elif len(label)<Maxlength:
+                label.extend(['PD']*(Maxlength-len(label)))
             num_label=len(labeldict)
             ltemp=[]
             for l in label:
@@ -67,6 +81,10 @@ def getbatch(mode,batch_size=64):
                 labels[labeldict[l]]=1
                 ltemp.append(labels)
             batch.label.append(ltemp)
+
+            #ptemp=list(range(Maxlength))
+            ptemp=[[i] for i in range(Maxlength)]
+            batch.position.append(ptemp)
         batches.append(batch)
     return batches         
 
@@ -76,6 +94,43 @@ if __name__=='__main__':
     devpath='UD_English-EWT/en_ewt-ud-dev.conllu'
     testpath='UD_English-EWT/en_ewt-ud-test.conllu'
 
-    batches=getbatch('train')
-    print(batches[0].arc)
-    print(batches[0].word)
+    batches=getbatch('train',batch_size)
+    batch=batches[0]
+    bd={}
+    bd['word']=batch.word
+    bd['char']=batch.char
+    bd['tag']=batch.tag
+    bd['arc']=batch.arc
+    bd['label']=batch.label
+    bd['position']=batch.position
+    for se in batch.word:
+        if len(se)!=Maxlength:
+            print('word',se)
+    for se in batch.char:
+        if len(se)!=Maxlength:
+            print('cword',se)
+        for w in se:
+            if len(w)!=Charlength:
+                print('char',se)
+    for se in batch.tag:
+        if len(se)!=Maxlength:
+            print('tag',se)
+        for t in se:
+            if len(t)!=17:
+                print('tagtype',t)
+    for se in batch.arc:
+        if len(se)!=Maxlength:
+            print('arc',se)
+    for se in batch.label:
+        if len(se)!=Maxlength:
+            print('label',se)
+        for l in se:
+            if len(l)!=37:
+                print('labeltype',l)
+    for se in batch.position:
+        if len(se)!=Maxlength:
+            print('position',se)
+    #with open('batch.json','w') as fout:
+    #    json.dump(bd,fout)
+    #print(batches[0].arc)
+    #print(batches[0].word)
