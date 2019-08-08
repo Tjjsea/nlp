@@ -48,8 +48,9 @@ class JModel():
                 bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
 
                 outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.taginput,dtype=tf.float32)
-            tagoutput=tf.concat(outputs,2)
+            tagoutput=tf.reshape(tf.concat(outputs,2),[-1,FLAGS.POS_biunits*2])
             self.tagout=self.MLP(tagoutput,FLAGS.POS_biunits*2,FLAGS.num_POS,'POS-tag',tf.nn.leaky_relu)
+            self.tagout=tf.reshape(self.tagout,[-1,FLAGS.sequence_length,FLAGS.num_POS])
             self.postag=tf.nn.softmax(self.tagout)#[batch_size,sequence_length,num_POS]
 
             #self.loss=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))            
@@ -74,7 +75,6 @@ class JModel():
 
             #Vi=tf.reshape(self.parvec,[-1,FLAGS.parse_biunits*2])
 
-
             with tf.name_scope("arc"):
                 sp=self.parvec.shape
                 res=[]
@@ -85,10 +85,11 @@ class JModel():
                             temp.append(tf.concat([self.parvec[i,j],self.parvec[i,k]],-1))
                     res.append(temp)
                 self.sc=tf.cast(res,tf.float32) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
-                
+                self.sc=tf.reshape(self.sc,[-1,FLAGS.parse_biunits*4])
                 self.score=self.MLP(self.sc,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
-                score=self.score.eval()
+                tf.enable_eager_execution()
+                score=self.score.numpy()
                 self.msts,self.maxweights=MST(score)
                 self.target_scores=GetScore(score,self.input_arc.eval())
                 one=tf.ones([1],tf.float32)
