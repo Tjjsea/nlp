@@ -43,7 +43,7 @@ class JModel():
         with tf.name_scope("POS_tagging_component"):
             #self.position=tf.reshape(self.position,[-1,FLAGS.sequence_length,1])
             self.taginput=tf.concat([self.embedded,self.position],2)  #拼接存在问题?
-            with tf.name_scope("POS-bilstm"):
+            with tf.variable_scope("POS-bilstm"):
                 fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
                 bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
 
@@ -52,48 +52,55 @@ class JModel():
             self.tagout=self.MLP(tagoutput,FLAGS.POS_biunits*2,FLAGS.num_POS,'POS-tag',tf.nn.leaky_relu)
             self.postag=tf.nn.softmax(self.tagout)#[batch_size,sequence_length,num_POS]
 
-            self.loss1=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))
-            
-        self.pos=tf.argmax(self.postag,-1)     #形状应为[batch_size,sequence_length,1] 预测的每个单词的标签
-        self.train1=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss1)
-        tf.summary.scalar('loss',self.loss1)
-        self.summary=tf.summary.merge_all()
-        self.saver=tf.train.Saver(tf.global_variables())
+            #self.loss=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))            
+            self.pos=tf.argmax(self.postag,-1)     #形状应为[batch_size,sequence_length,1] 预测的每个单词的标签
+        #self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
+        #tf.summary.scalar('loss',self.loss)
+        #self.summary=tf.summary.merge_all()
+        #self.saver=tf.train.Saver(tf.global_variables())
 
-        '''
+        
         #Parsing component
-        with tf.name_scope("parsing component"):
-            POS_embedding=tf.Variable(tf.random_uniform([num_POS,POSembedding_size],-1.0,1.0))
-            self.POS_embedded=tf.nn.embedding_lookup(POS_embedding,self.pos)
-            self.parinput=tf.concat([self.POS_embedded,self.embedded,self.position],-1)
-            with tf.name_scope("parse-bilstm"):
-                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(parse_biunits),output_keep_prob=self.dropout_keep_prob)
-                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(parse_biunits),output_keep_prob=self.dropout_keep_prob)
+        with tf.name_scope("parsing_component"):
+            POS_embedding=tf.Variable(tf.random_uniform([FLAGS.num_POS,FLAGS.POSembedding_size],-1.0,1.0))
+            self.POS_embedded=tf.nn.embedding_lookup(POS_embedding,self.pos) # [batch_size,sequence_length,POSembedding_size]
+            self.parinput=tf.concat([self.POS_embedded,self.embedded,self.position],-1) #[batch_size,sequence_length,wordembedding_size*2+POSembedding_size+1]
+            with tf.variable_scope("parse-bilstm"):
+                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.parse_biunits),output_keep_prob=self.dropout_keep_prob)
+                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.parse_biunits),output_keep_prob=self.dropout_keep_prob)
 
-                outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.parinput)
+                outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.parinput,dtype=tf.float32)
             self.parvec=tf.concat(outputs,2) #[batch_size,sequence_length,parse_biunits*2] vi
+
+            #Vi=tf.reshape(self.parvec,[-1,FLAGS.parse_biunits*2])
+
 
             with tf.name_scope("arc"):
                 sp=self.parvec.shape
                 res=[]
-                for i in range(sp[0]):
+                for i in range(FLAGS.batch_size):
                     temp=[]
                     for j in range(sp[1]):
-                        for k in range(sp[2]):
-                            temp.append(tf.concat([self.parvec[i,j],self.parvec[i,k]],tf.float32))
+                        for k in range(sp[1]):
+                            temp.append(tf.concat([self.parvec[i,j],self.parvec[i,k]],-1))
                     res.append(temp)
                 self.sc=tf.cast(res,tf.float32) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
                 
-                self.score=self.MLP(self.sc,parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
-                self.score=tf.reshape(self.score,[self.score.shape[0],sequence_length,sequence_length]) #[batch_size,sequence_length,sequence_length]
+                self.score=self.MLP(self.sc,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
+                self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
                 score=self.score.eval()
                 self.msts,self.maxweights=MST(score)
                 self.target_scores=GetScore(score,self.input_arc.eval())
-                one=tf.constant(np.ones(self.score.shape[0]),tf.float32)
+                one=tf.ones([1],tf.float32)
                 zero=tf.constant(0,tf.float32)
-                self.loss2=tf.maximum(zero,tf.reduce_mean(tf.add(one,tf.subtract(self.target_scores,self.maxweights))))
+                self.loss=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_scores,self.maxweights))))
+            self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
+            tf.summary.scalar('loss',self.loss)
+            self.summary=tf.summary.merge_all()
+            self.saver=tf.train.Saver(tf.global_variables())
 
-            with tf.name_scope("arc label"):
+        '''
+            with tf.name_scope("arc_label"):
                 sp=self.parvec.shape
                 res=[]
                 for i in range(sp[0]):
@@ -130,7 +137,9 @@ class JModel():
         feed_dict={self.input_word:batch.word,
                    self.input_character:batch.char,
                    self.input_tag:batch.tag,
-                   self.position:batch.position,
-                   self.dropout_keep_prob:0.5}
-        _,loss,summary=sess.run([self.train1,self.loss1,self.summary],feed_dict=feed_dict)
+                   self.input_arc:batch.arc,
+                   self.input_arclabel:batch.label,
+                   self.dropout_keep_prob:0.5,
+                   self.position:batch.position}
+        _,loss,summary=sess.run([self.train,self.loss,self.summary],feed_dict=feed_dict)
         return loss,summary
