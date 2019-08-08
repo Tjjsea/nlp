@@ -49,3 +49,6 @@ labels和logits必须有相同的type和shape，该方法可以用于多目标�
 
 #七.lstm
 ##1.tf.nn.bidirectional_dynamic_rnn
+
+#八.错误记录
+##1.
