@@ -95,7 +95,7 @@ if __name__=='__main__':
     testpath='UD_English-EWT/en_ewt-ud-test.conllu'
 
     batches=getbatch('train',batch_size)
-    batch=batches[0]
+    batch=batches[1]
     bd={}
     bd['word']=batch.word
     bd['char']=batch.char
@@ -103,33 +103,7 @@ if __name__=='__main__':
     bd['arc']=batch.arc
     bd['label']=batch.label
     bd['position']=batch.position
-    for se in batch.word:
-        if len(se)!=Maxlength:
-            print('word',se)
-    for se in batch.char:
-        if len(se)!=Maxlength:
-            print('cword',se)
-        for w in se:
-            if len(w)!=Charlength:
-                print('char',se)
-    for se in batch.tag:
-        if len(se)!=Maxlength:
-            print('tag',se)
-        for t in se:
-            if len(t)!=17:
-                print('tagtype',t)
-    for se in batch.arc:
-        if len(se)!=Maxlength:
-            print('arc',se)
-    for se in batch.label:
-        if len(se)!=Maxlength:
-            print('label',se)
-        for l in se:
-            if len(l)!=37:
-                print('labeltype',l)
-    for se in batch.position:
-        if len(se)!=Maxlength:
-            print('position',se)
+    print(len(batch.word))
     #with open('batch.json','w') as fout:
     #    json.dump(bd,fout)
     #print(batches[0].arc)
