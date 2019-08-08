@@ -56,8 +56,8 @@ with tf.Session() as sess:
 
         batches=getbatch('train',batch_size)
         # Tqdm 是一个快速，可扩展的Python进度条，可以在 Python 长循环中添加一个进度提示信息，用户只需要封装任意的迭代器 tqdm(iterator)。
-        for nextBatch in tqdm(batches, desc="Training"):
-            loss, summary = model.train(sess, nextBatch)
+        for batch in tqdm(batches, desc="Training"):
+            loss,summary= model.train(sess, batch)
             current_step += 1
             # 每多少步进行一次保存
             if current_step % FLAGS.steps_per_checkpoint == 0:
