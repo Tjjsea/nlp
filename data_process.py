@@ -19,6 +19,7 @@ def extract(mode):
         line=line.strip()
         if not line:
             if count<=3 or count>=37:
+                count=0
                 continue
             count=0
             sentence['word']=form
