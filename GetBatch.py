@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import json
+import numpy as np
 
 Maxlength=36
 Charlength=16
@@ -95,7 +96,7 @@ if __name__=='__main__':
     testpath='UD_English-EWT/en_ewt-ud-test.conllu'
 
     batches=getbatch('train',batch_size)
-    batch=batches[1]
+    batch=batches[0]
     bd={}
     bd['word']=batch.word
     bd['char']=batch.char
@@ -103,6 +104,8 @@ if __name__=='__main__':
     bd['arc']=batch.arc
     bd['label']=batch.label
     bd['position']=batch.position
+    na=np.array(batch.char)
+    print(na.shape)
     print(len(batch.word))
     #with open('batch.json','w') as fout:
     #    json.dump(bd,fout)

@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_integer("epochs",1,"num of epochs")
 tf.app.flags.DEFINE_integer("batch_size",batch_size,"batch size")
 tf.app.flags.DEFINE_integer("steps_per_checkpoint",100,"save model checkpoint every this iteration")
 tf.app.flags.DEFINE_float("learning_rate",0.01,"learing rate")
-tf.app.flags.DEFINE_string("model_dir","model/POS/","path to save model checkpoints")
+tf.app.flags.DEFINE_string("model_dir","model/arc/","path to save model checkpoints")
 tf.app.flags.DEFINE_string("model_name","POStag.ckpt","file name used for model checkpoints")
 FLAGS=tf.app.flags.FLAGS
 
@@ -57,6 +57,8 @@ with tf.Session() as sess:
         batches=getbatch('train',batch_size)
         # Tqdm 是一个快速，可扩展的Python进度条，可以在 Python 长循环中添加一个进度提示信息，用户只需要封装任意的迭代器 tqdm(iterator)。
         for batch in tqdm(batches, desc="Training"):
+            if len(batch.word)<batch_size:
+                continue
             loss,summary= model.train(sess, batch)
             current_step += 1
             # 每多少步进行一次保存
