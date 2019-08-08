@@ -26,20 +26,23 @@ class JModel():
             self.char_embedding=tf.Variable(tf.random_uniform([FLAGS.char_size,FLAGS.charembedding_size],-1.0,1.0))
             char_input=tf.nn.embedding_lookup(self.char_embedding,char_input) #[batch_size*sequence_length,max_words_length,charembedding_size]
             with tf.variable_scope("char-bilstm"):
-                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.char_biunits),output_keep_prob=self.dropout_keep_prob)
-                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.char_biunits),output_keep_prob=self.dropout_keep_prob)
+                fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(FLAGS.char_biunits),output_keep_prob=self.dropout_keep_prob)
+                bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.BasicLSTMCell(FLAGS.char_biunits),output_keep_prob=self.dropout_keep_prob)
 
                 outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,char_input,dtype=tf.float32)
-                charbioutput=tf.concat(outputs,2) #[batch_size*sequence_length,char_biunits*2]
+                out_fw,out_bw=outputs
+                out_fw=out_fw[:,-1,:]
+                out_bw=out_bw[:,-1,:]
+                charbioutput=tf.concat([out_fw,out_bw],1) #[batch_size*sequence_length,1,char_biunits*2]
+                charbioutput=tf.reshape(charbioutput,[-1,FLAGS.char_biunits*2])
             charoutput=self.MLP(charbioutput,FLAGS.char_biunits*2,FLAGS.wordembedding_size,'char_embedding',tf.nn.leaky_relu)
             self.char_embedded=tf.reshape(charoutput,[-1,FLAGS.sequence_length,FLAGS.wordembedding_size])
-        
-        self.embedded=tf.concat([self.word_embedded,self.char_embedded],-1)   #将word-level与char-level的embedding拼接 [batch_size,sequence_length,2*wordembedding_size]
+        self.embedded=tf.concat([self.char_embedded,self.word_embedded],-1)   #将word-level与char-level的embedding拼接 [batch_size,sequence_length,2*wordembedding_size]
 
         #POS tagging component
         with tf.name_scope("POS_tagging_component"):
             #self.position=tf.reshape(self.position,[-1,FLAGS.sequence_length,1])
-            self.taginput=tf.concat([self.embedded,self.position],-1)  #拼接存在问题?
+            self.taginput=tf.concat([self.embedded,self.position],2)  #拼接存在问题?
             with tf.name_scope("POS-bilstm"):
                 fwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
                 bwlstm=tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(FLAGS.POS_biunits),output_keep_prob=self.dropout_keep_prob)
@@ -53,6 +56,8 @@ class JModel():
             
         self.pos=tf.argmax(self.postag,-1)     #形状应为[batch_size,sequence_length,1] 预测的每个单词的标签
         self.train1=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss1)
+        tf.summary.scalar('loss',self.loss1)
+        self.summary=tf.summary.merge_all()
         self.saver=tf.train.Saver(tf.global_variables())
 
         '''
@@ -127,5 +132,5 @@ class JModel():
                    self.input_tag:batch.tag,
                    self.position:batch.position,
                    self.dropout_keep_prob:0.5}
-        _,loss=sess.run([self.train1,self.loss1],feed_dict=feed_dict)
-        return loss
+        _,loss,summary=sess.run([self.train1,self.loss1,self.summary],feed_dict=feed_dict)
+        return loss,summary
