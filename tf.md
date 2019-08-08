@@ -35,8 +35,10 @@ out:`[[[1 2]`
 ##1.交叉熵
 ###1.1 tf.nn.softmax_cross_entropy_with_logits
 `tf.nn.softmax_cross_entropy_with_logits(_sentinel=None, labels=None, logits=None, dim=-1, name=None)`
-###1.2 
-
+labels和logits有相同的shape，适用于单目标问题，如判断一张图片是猫、狗还是人，即label中只有一个位置对应的是1，其余全为0。output:[batch_size]
+###1.2 tf.nn.sigmoid_cross_entropy_with_logits
+`tf.nn.sigmoid_cross_entropy_with_logits(_sentinel=None, labels=None, logits=None, name=None)`
+labels和logits必须有相同的type和shape，该方法可以用于多目标问题，如判断一张图片中是否包含人、狗、树等，即对应的label包含多个1。但是output不是一个数，而是一个batch中每个样本的loss,所以一般配合tf.reduce_mean(loss)使用。
 #四.激活函数
 ##1.
 
