@@ -51,4 +51,15 @@ labels和logits必须有相同的type和shape，该方法可以用于多目标�
 ##1.tf.nn.bidirectional_dynamic_rnn
 
 #八.错误记录
-##1.
+##1.tf.matmul
+
+#九.tensor -> numpy
+##1.tf.enable_eager_execution()
+[stackoverflow](https://stackoverflow.com/questions/52215711/tensorflow-tensor-to-numpy-array-conversion-without-running-any-session)
+```
+import tensorflow as tf
+x=tf.constant([1,2,3,4])
+print(x.numpy())
+#[1 2 3 4]
+```
+##2.
