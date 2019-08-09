@@ -75,20 +75,18 @@ class JModel():
 
             #Vi=tf.reshape(self.parvec,[-1,FLAGS.parse_biunits*2])
 
+
             with tf.name_scope("arc"):
+                #tf.enable_eager_execution()
                 sp=self.parvec.shape
-                res=[]
-                for i in range(FLAGS.batch_size):
-                    temp=[]
-                    for j in range(sp[1]):
-                        for k in range(sp[1]):
-                            temp.append(tf.concat([self.parvec[i,j],self.parvec[i,k]],-1))
-                    res.append(temp)
-                self.sc=tf.cast(res,tf.float32) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
-                self.sc=tf.reshape(self.sc,[-1,FLAGS.parse_biunits*4])
-                self.score=self.MLP(self.sc,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
+                v1=tf.tile(self.parvec,[1,1,sp[1]])
+                V1=tf.reshape(v1,[sp[0],sp[1]*2,sp[2]])
+                V2=tf.tile(self.parvec,[1,sp[1],1])
+                self.V=tf.concat([V1,V2],-1) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
+                self.V=tf.reshape(self.V,[-1,FLAGS.parse_biunits*4])
+                self.score=self.MLP(self.V,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
-                tf.enable_eager_execution()
+
                 score=self.score.numpy()
                 self.msts,self.maxweights=MST(score)
                 self.target_scores=GetScore(score,self.input_arc.eval())
