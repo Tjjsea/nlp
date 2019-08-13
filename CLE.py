@@ -100,17 +100,22 @@ def MST(G):
                 mst,mweight=tree,weight  #mst:列表，表示对应词的head的序号，head为0表示无head
         msts.append(mst)
         mweights.append(mweight)
-    #msts=tf.cast(msts,tf.int32)
+    msts=tf.cast(msts,tf.int32)
     mweights=tf.cast(mweights,tf.float32)
     return msts,mweights
 
 def GetScore(G,heads):
-    weights=0
+    '''
+    根据给定目标head，计算相应树的权重
+    '''
+    weights=[]
     for b in range(len(heads)):
+        temp=0
         for i,h in enumerate(heads[b]):
             if i==h: #根节点
                 continue
-            weights+=G[b,h,i]
+            temp+=G[b,h,i]
+        weights.append(temp)
     weights=tf.cast(weights,tf.float32)
     return weights
 
