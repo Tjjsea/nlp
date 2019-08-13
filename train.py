@@ -59,7 +59,7 @@ with tf.Session() as sess:
         for batch in tqdm(batches, desc="Training"):
             if len(batch.word)<batch_size:
                 continue
-            loss,summary= model.train(sess, batch)
+            loss,summary= model.Train(sess, batch)
             current_step += 1
             # 每多少步进行一次保存
             if current_step % FLAGS.steps_per_checkpoint == 0:
