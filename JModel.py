@@ -15,6 +15,10 @@ class JModel():
         self.position=tf.placeholder(tf.float32,[None,None,1],name='context_position')
         self.dropout_keep_prob=tf.placeholder(tf.float32,name='dropout_keep_prob')
 
+        self.max_span_tree=tf.placeholder(tf.int32,[None,None],name='max_span_tree')
+        self.max_weight=tf.placeholder(tf.float32,[None],name='max_weight')
+        self.target_score=tf.placeholder(tf.float32,[None,1],name='target_score')
+
         #word embeeding
         with tf.name_scope("word_embedding"):
             self.word_embedding=tf.Variable(tf.random_uniform([FLAGS.vocab_size,FLAGS.wordembedding_size],-1.0,1.0))
@@ -53,7 +57,7 @@ class JModel():
             self.tagout=tf.reshape(self.tagout,[-1,FLAGS.sequence_length,FLAGS.num_POS])
             self.postag=tf.nn.softmax(self.tagout)#[batch_size,sequence_length,num_POS]
 
-            #self.loss=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))            
+            self.loss1=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_tag,logits=self.postag))            
             self.pos=tf.argmax(self.postag,-1)     #形状应为[batch_size,sequence_length,1] 预测的每个单词的标签
         #self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
         #tf.summary.scalar('loss',self.loss)
@@ -76,7 +80,6 @@ class JModel():
             with tf.name_scope("arc"):
                 #tf.enable_eager_execution()
                 sp=self.parvec.shape
-                print(sp)
                 v1=tf.tile(self.parvec,[1,1,sp[1]]) #[batch_size,sequence_length,parse_biunits*2*sequence_length]
                 V1=tf.reshape(v1,[FLAGS.batch_size,sp[1]*sp[1],sp[2]]) #[batch_size,sequence_length*sequence_length,parse_biunits*2]
                 V2=tf.tile(self.parvec,[1,sp[1],1]) #[batch_size,sequence_length*sequence_length,parse_biunits*2]
@@ -85,12 +88,13 @@ class JModel():
                 self.score=self.MLP(self.V,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
 
-                score=tf.print(self.score.numpy())
-                self.msts,self.maxweights=MST(score)
-                self.target_scores=GetScore(score,self.input_arc.eval())
+                #score=tf.print(self.score.numpy())
+                #self.msts,self.maxweights=MST(score)
+                #self.target_scores=GetScore(score,self.input_arc.eval())
                 one=tf.ones([1],tf.float32)
-                zero=tf.constant(0,tf.float32)
-                self.loss=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_scores,self.maxweights))))
+                zero=tf.constant([0],tf.float32)
+                self.loss=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_score,self.max_weight))))
+                self.loss=tf.add(self.loss,self.loss1)
             self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
             tf.summary.scalar('loss',self.loss)
             self.summary=tf.summary.merge_all()
@@ -130,13 +134,28 @@ class JModel():
             out2 = tf.matmul(out1,Weights2)+bias2
             return out2
         
-    def train(self,sess,batch):
+    def Train(self,sess,batch):
+        score=self.getscore(sess,batch)
+        msts,mweights=MST(score)
+        target_score=GetScore(score,batch.arc)
         feed_dict={self.input_word:batch.word,
                    self.input_character:batch.char,
                    self.input_tag:batch.tag,
                    self.input_arc:batch.arc,
-                   self.input_arclabel:batch.label,
                    self.dropout_keep_prob:0.5,
-                   self.position:batch.position}
+                   self.position:batch.position,
+                   self.max_span_tree:msts,
+                   self.max_weight:mweights,
+                   self.target_score:target_score}
         _,loss,summary=sess.run([self.train,self.loss,self.summary],feed_dict=feed_dict)
         return loss,summary
+
+    def getscore(self,sess,batch):
+        feed_dict={self.input_word:batch.word,
+                   self.input_character:batch.char,
+                   self.input_tag:batch.tag,
+                   self.input_arc:batch.arc,
+                   self.dropout_keep_prob:0.5,
+                   self.position:batch.position}
+        score=sess.run(self.score,feed_dict=feed_dict)
+        return np.array(score)
