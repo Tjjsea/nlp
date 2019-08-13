@@ -73,21 +73,19 @@ class JModel():
                 outputs,_=tf.nn.bidirectional_dynamic_rnn(fwlstm,bwlstm,self.parinput,dtype=tf.float32)
             self.parvec=tf.concat(outputs,2) #[batch_size,sequence_length,parse_biunits*2] vi
 
-            #Vi=tf.reshape(self.parvec,[-1,FLAGS.parse_biunits*2])
-
-
             with tf.name_scope("arc"):
                 #tf.enable_eager_execution()
                 sp=self.parvec.shape
-                v1=tf.tile(self.parvec,[1,1,sp[1]])
-                V1=tf.reshape(v1,[sp[0],sp[1]*2,sp[2]])
-                V2=tf.tile(self.parvec,[1,sp[1],1])
+                print(sp)
+                v1=tf.tile(self.parvec,[1,1,sp[1]]) #[batch_size,sequence_length,parse_biunits*2*sequence_length]
+                V1=tf.reshape(v1,[FLAGS.batch_size,sp[1]*sp[1],sp[2]]) #[batch_size,sequence_length*sequence_length,parse_biunits*2]
+                V2=tf.tile(self.parvec,[1,sp[1],1]) #[batch_size,sequence_length*sequence_length,parse_biunits*2]
                 self.V=tf.concat([V1,V2],-1) #[batch_size,sequence_length^2,parse_biunits*4] 拼接后的特征
                 self.V=tf.reshape(self.V,[-1,FLAGS.parse_biunits*4])
                 self.score=self.MLP(self.V,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
 
-                score=self.score.numpy()
+                score=tf.print(self.score.numpy())
                 self.msts,self.maxweights=MST(score)
                 self.target_scores=GetScore(score,self.input_arc.eval())
                 one=tf.ones([1],tf.float32)
