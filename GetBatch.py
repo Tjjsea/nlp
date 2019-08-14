@@ -91,9 +91,6 @@ def getbatch(mode,batch_size=64):
 
 if __name__=='__main__':
     batch_size=64
-    trainpath='UD_English-EWT/en_ewt-ud-train.conllu'
-    devpath='UD_English-EWT/en_ewt-ud-dev.conllu'
-    testpath='UD_English-EWT/en_ewt-ud-test.conllu'
 
     batches=getbatch('train',batch_size)
     batch=batches[0]
@@ -104,10 +101,4 @@ if __name__=='__main__':
     bd['arc']=batch.arc
     bd['label']=batch.label
     bd['position']=batch.position
-    na=np.array(batch.char)
-    print(na.shape)
-    print(len(batch.word))
-    #with open('batch.json','w') as fout:
-    #    json.dump(bd,fout)
-    #print(batches[0].arc)
-    #print(batches[0].word)
+    print(batch.arc)
