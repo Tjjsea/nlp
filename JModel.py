@@ -87,7 +87,7 @@ class JModel():
                 self.V=tf.reshape(self.V,[-1,FLAGS.parse_biunits*4])
                 self.score=self.MLP(self.V,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
-                
+
                 one=tf.ones([1],tf.float32)
                 zero=tf.constant([0],tf.float32)
                 self.loss2=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_score,self.max_weight))))
@@ -97,7 +97,7 @@ class JModel():
             #self.summary=tf.summary.merge_all()
             self.saver=tf.train.Saver(tf.global_variables())
 
-        '''
+        
             with tf.name_scope("arc_label"):
                 sp=self.parvec.shape
                 res=[]
@@ -109,14 +109,14 @@ class JModel():
                         temp.append(tf.concat([head,tail],-1))
                     res.append(temp)
                 self.arcs=tf.cast(res,tf.float32) #[batch_size,sequence_length,parse_biunits*4]
-                self.arclabel=tf.nn.softmax(self.MLP(self.arcs,parse_biunits*4,num_label,'arc_label',tf.nn.leaky_relu))
+                self.arclabel=tf.nn.softmax(self.MLP(self.arcs,FLAGS.parse_biunits*4,FLAGS.num_label,'arc_label',tf.nn.leaky_relu))
                 self.loss3=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_arclabel,logits=self.arclabel))
                 self.label=tf.argmax(self.arclabel,-1)
 
             self.loss=tf.add(tf.add(self.loss1,self.loss2),self.loss3)
-            self.train_op=tf.train.GradientDescentOptimizer(learning_rate).minimize(self.loss)
+            self.train_op=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
             self.saver = tf.train.Saver(tf.global_variables())
-        '''
+        
         
     def MLP(self,inputs, insize, outsize, scope_name,activation_function=None):
         hidsize=128
