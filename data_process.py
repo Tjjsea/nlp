@@ -20,6 +20,7 @@ def extract(mode):
         if not line:
             if count<=3 or count>=37:
                 count=0
+                form,lemma,POStag,head,label=[],[],[],[],[]
                 continue
             count=0
             sentence['word']=form
