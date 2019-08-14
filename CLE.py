@@ -68,7 +68,7 @@ def spanning_arborescence(arcs, sink):
         solution_arc_by_tail[arc.tail] = arc.head #符合treebank格式
         weights+=arc.weight
         stack.extend(arcs_by_head[arc.tail])
-    solution_arc_by_tail[sink] = sink #根节点没有head
+    solution_arc_by_tail[sink] = sink #根节点的head指向自己
 
     return [solution_arc_by_tail[k] for k in sorted(solution_arc_by_tail)],weights
 
@@ -95,13 +95,11 @@ def MST(G):
     for idx,arcs in enumerate(allarcs):
         mst,mweight={},-999
         for i in range(G.shape[1]):
-            tree,weight=max_spanning_arborescence(arcs,i)
+            heads,weight=max_spanning_arborescence(arcs,i)
             if weight>mweight:
-                mst,mweight=tree,weight  #mst:列表，表示对应词的head的序号，head为0表示无head
+                mst,mweight=heads,weight  #mst:列表，表示对应词的head的序号，head为0表示无head
         msts.append(mst)
         mweights.append(mweight)
-    msts=tf.cast(msts,tf.int32)
-    mweights=tf.cast(mweights,tf.float32)
     return msts,mweights
 
 def GetScore(G,heads):
@@ -116,7 +114,6 @@ def GetScore(G,heads):
                 continue
             temp+=G[b,h,i]
         weights.append(temp)
-    weights=tf.cast(weights,tf.float32)
     return weights
 
 if __name__=='__main__':
@@ -130,5 +127,5 @@ if __name__=='__main__':
     with tf.Session() as sess:
         G=tf.cast(G,tf.int32)
         msts,mweights=MST(G.eval())
-        print(msts)
+        print(sess.run(msts))
         print(sess.run(mweights))
