@@ -17,7 +17,7 @@ class JModel():
 
         self.max_span_tree=tf.placeholder(tf.int32,[None,None],name='max_span_tree')
         self.max_weight=tf.placeholder(tf.float32,[None],name='max_weight')
-        self.target_score=tf.placeholder(tf.float32,[None,1],name='target_score')
+        self.target_score=tf.placeholder(tf.float32,[None],name='target_score')
 
         #word embeeding
         with tf.name_scope("word_embedding"):
@@ -87,17 +87,14 @@ class JModel():
                 self.V=tf.reshape(self.V,[-1,FLAGS.parse_biunits*4])
                 self.score=self.MLP(self.V,FLAGS.parse_biunits*4,1,'arc',tf.nn.leaky_relu) #[batch_size,sequence_length^2]
                 self.score=tf.reshape(self.score,[-1,FLAGS.sequence_length,FLAGS.sequence_length]) #[batch_size,sequence_length,sequence_length]
-
-                #score=tf.print(self.score.numpy())
-                #self.msts,self.maxweights=MST(score)
-                #self.target_scores=GetScore(score,self.input_arc.eval())
+                
                 one=tf.ones([1],tf.float32)
                 zero=tf.constant([0],tf.float32)
-                self.loss=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_score,self.max_weight))))
-                self.loss=tf.add(self.loss,self.loss1)
+                self.loss2=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_score,self.max_weight))))
+                self.loss=tf.add(self.loss2,self.loss1)
             self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
-            tf.summary.scalar('loss',self.loss)
-            self.summary=tf.summary.merge_all()
+            #tf.summary.scalar('loss',self.loss)
+            #self.summary=tf.summary.merge_all()
             self.saver=tf.train.Saver(tf.global_variables())
 
         '''
@@ -147,8 +144,8 @@ class JModel():
                    self.max_span_tree:msts,
                    self.max_weight:mweights,
                    self.target_score:target_score}
-        _,loss,summary=sess.run([self.train,self.loss,self.summary],feed_dict=feed_dict)
-        return loss,summary
+        _,loss=sess.run([self.train,self.loss],feed_dict=feed_dict)
+        return loss
 
     def getscore(self,sess,batch):
         feed_dict={self.input_word:batch.word,
