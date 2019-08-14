@@ -50,7 +50,7 @@ with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
     
     current_step = 0
-    summary_writer = tf.summary.FileWriter(FLAGS.model_dir, graph=sess.graph)
+    #summary_writer = tf.summary.FileWriter(FLAGS.model_dir, graph=sess.graph)
     for e in range(FLAGS.epochs):
         print("----- Epoch {}/{} -----".format(e + 1, FLAGS.epochs))
 
@@ -59,11 +59,11 @@ with tf.Session() as sess:
         for batch in tqdm(batches, desc="Training"):
             if len(batch.word)<batch_size:
                 continue
-            loss,summary= model.Train(sess, batch)
+            loss=model.Train(sess, batch)
             current_step += 1
             # 每多少步进行一次保存
             if current_step % FLAGS.steps_per_checkpoint == 0:
                 tqdm.write("----- Step %d -- Loss %.2f " % (current_step, loss))
-                summary_writer.add_summary(summary, current_step)
+                #summary_writer.add_summary(summary, current_step)
                 checkpoint_path = os.path.join(FLAGS.model_dir, FLAGS.model_name)
                 model.saver.save(sess, checkpoint_path, global_step=current_step)
