@@ -11,13 +11,14 @@ class JModel():
         self.input_character=tf.placeholder(tf.int32,[None,None,None],name='input_character')
         self.input_tag=tf.placeholder(tf.int32,[None,None,None],name='POS_tag')
         self.input_arc=tf.placeholder(tf.int32,[None,None],name='arc')
-        self.input_arclabel=tf.placeholder(tf.int32,[None,None],name='arc_label')
+        self.input_arclabel=tf.placeholder(tf.int32,[None,None,None],name='arc_label')
         self.position=tf.placeholder(tf.float32,[None,None,1],name='context_position')
         self.dropout_keep_prob=tf.placeholder(tf.float32,name='dropout_keep_prob')
 
         self.max_span_tree=tf.placeholder(tf.int32,[None,None],name='max_span_tree')
         self.max_weight=tf.placeholder(tf.float32,[None],name='max_weight')
         self.target_score=tf.placeholder(tf.float32,[None],name='target_score')
+        self.pre_heads=tf.placeholder(tf.float32,[None,None,None],name='pre_heads')
 
         #word embeeding
         with tf.name_scope("word_embedding"):
@@ -91,25 +92,19 @@ class JModel():
                 one=tf.ones([1],tf.float32)
                 zero=tf.constant([0],tf.float32)
                 self.loss2=tf.maximum(zero,tf.add(one,tf.reduce_mean(tf.subtract(self.target_score,self.max_weight))))
-                self.loss=tf.add(self.loss2,self.loss1)
-            self.train=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
+                #self.loss=tf.add(self.loss2,self.loss1)
+            #self.train_op=tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(self.loss)
             #tf.summary.scalar('loss',self.loss)
             #self.summary=tf.summary.merge_all()
-            self.saver=tf.train.Saver(tf.global_variables())
+            #self.saver=tf.train.Saver(tf.global_variables())
 
         
             with tf.name_scope("arc_label"):
-                sp=self.parvec.shape
-                res=[]
-                for i in range(sp[0]):
-                    temp=[]
-                    for j in range(sp[1]):
-                        head=self.parvec[i,self.msts[i][j]]
-                        tail=self.parvec[i,j]
-                        temp.append(tf.concat([head,tail],-1))
-                    res.append(temp)
-                self.arcs=tf.cast(res,tf.float32) #[batch_size,sequence_length,parse_biunits*4]
-                self.arclabel=tf.nn.softmax(self.MLP(self.arcs,FLAGS.parse_biunits*4,FLAGS.num_label,'arc_label',tf.nn.leaky_relu))
+                self.arcs=tf.concat([self.pre_heads,self.parvec],-1) #[batch_size,sequence_length,parse_biunits*4]
+                self.arcs=tf.reshape(self.arcs,[-1,FLAGS.parse_biunits*4])
+                label_out=self.MLP(self.arcs,FLAGS.parse_biunits*4,FLAGS.num_label,'arc_label',tf.nn.leaky_relu)
+                label_out=tf.reshape(label_out,[-1,FLAGS.sequence_length,FLAGS.num_label])
+                self.arclabel=tf.nn.softmax(label_out)
                 self.loss3=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.input_arclabel,logits=self.arclabel))
                 self.label=tf.argmax(self.arclabel,-1)
 
@@ -131,20 +126,30 @@ class JModel():
             out2 = tf.matmul(out1,Weights2)+bias2
             return out2
         
-    def Train(self,sess,batch):
-        score=self.getscore(sess,batch)
+    def train(self,sess,batch):
+        score,vi=self.getscore(sess,batch)
         msts,mweights=MST(score)
         target_score=GetScore(score,batch.arc)
+
+        heads=[]
+        for i in range(len(msts)):
+            temp=[]
+            for j in range(len(msts[i])):
+                temp.append(vi[i,msts[i][j]])
+            heads.append(temp)
+
         feed_dict={self.input_word:batch.word,
                    self.input_character:batch.char,
                    self.input_tag:batch.tag,
                    self.input_arc:batch.arc,
+                   self.input_arclabel:batch.label,
                    self.dropout_keep_prob:0.5,
                    self.position:batch.position,
                    self.max_span_tree:msts,
                    self.max_weight:mweights,
-                   self.target_score:target_score}
-        _,loss=sess.run([self.train,self.loss],feed_dict=feed_dict)
+                   self.target_score:target_score,
+                   self.pre_heads:heads}
+        _,loss=sess.run([self.train_op,self.loss],feed_dict=feed_dict)
         return loss
 
     def getscore(self,sess,batch):
@@ -154,5 +159,5 @@ class JModel():
                    self.input_arc:batch.arc,
                    self.dropout_keep_prob:0.5,
                    self.position:batch.position}
-        score=sess.run(self.score,feed_dict=feed_dict)
-        return np.array(score)
+        score,vi=sess.run([self.score,self.parvec],feed_dict=feed_dict)
+        return score,vi
