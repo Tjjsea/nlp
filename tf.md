@@ -65,3 +65,42 @@ print(x.numpy())
 #[1 2 3 4]
 ```
 ##2.
+
+#十.卷积
+
+#十一.rnn
+
+#十二.tf.get_variable()
+```
+get_variable(
+    name,
+    shape=None,
+    dtype=None,
+    initializer=None,
+    regularizer=None,
+    trainable=True,
+    collections=None,
+    caching_device=None,
+    partitioner=None,
+    validate_shape=True,
+    use_resource=None,
+    custom_getter=None,
+    constraint=None
+)
+```
+initializer:
+```
+tf.constant_initializer：常量初始化函数
+
+tf.random_normal_initializer：正态分布
+
+tf.truncated_normal_initializer：截取的正态分布
+
+tf.random_uniform_initializer：均匀分布
+
+tf.zeros_initializer：全部是0
+
+tf.ones_initializer：全是1
+
+tf.uniform_unit_scaling_initializer：满足均匀分布，但不影响输出数量级的随机值
+```
